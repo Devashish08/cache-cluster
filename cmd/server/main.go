@@ -3,51 +3,43 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
 
-	"github.com/Devashish08/go-cache-cluster/internal/cache" // <-- IMPORTANT: Update this path
+	// Import our packages
+	api "github.com/Devashish08/go-cache-cluster/api/v1"
+	"github.com/Devashish08/go-cache-cluster/internal/cache"
+	"github.com/Devashish08/go-cache-cluster/internal/server"
+
+	// Import gRPC
+	"google.golang.org/grpc"
 )
 
 func main() {
-	// Create a new cache with a capacity of 2
-	c := cache.New(2)
-	fmt.Println("Cache created with capacity 2.")
-
-	// Set two items
-	fmt.Println("Setting key 'A' with value 'Apple'")
-	c.Set("A", []byte("Apple"))
-	fmt.Println("Setting key 'B' with value 'Ball'")
-	c.Set("B", []byte("Ball"))
-
-	// Get key 'A' to make it the most recently used
-	if val, ok := c.Get("A"); ok {
-		fmt.Printf("Got key 'A', value: %s. This should make 'A' the most recently used.\n", string(val))
+	port := ":8080"
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	// Set a third item. This should cause 'B' to be evicted.
-	fmt.Println("Setting key 'C' with value 'Cat'. This should evict key 'B'.")
-	c.Set("C", []byte("Cat"))
+	c := cache.New(1000)
+	defer c.Stop()
 
-	// --- Verification ---
-	fmt.Println("\n--- Verifying cache state ---")
+	// 2. Create an instance of our gRPC server implementation.
+	srv := server.NewGRPCServer(c)
 
-	// Try to get 'B'. It should not be found.
-	if _, ok := c.Get("B"); !ok {
-		fmt.Println("✅ Key 'B' not found (correctly evicted).")
-	} else {
-		fmt.Println("❌ FAILED: Key 'B' was found, but it should have been evicted.")
-	}
+	// 3. Create a new gRPC server from the Go gRPC library.
+	grpcServer := grpc.NewServer()
 
-	// Try to get 'A'. It should be found.
-	if val, ok := c.Get("A"); ok {
-		fmt.Printf("✅ Key 'A' found with value: %s.\n", string(val))
-	} else {
-		fmt.Println("❌ FAILED: Key 'A' was not found.")
-	}
+	// 4. Register our server implementation with the gRPC server.
+	// This tells the gRPC server how to handle requests for the Cache service.
+	api.RegisterCacheServer(grpcServer, srv)
 
-	// Try to get 'C'. It should be found.
-	if val, ok := c.Get("C"); ok {
-		fmt.Printf("✅ Key 'C' found with value: %s.\n", string(val))
-	} else {
-		fmt.Println("❌ FAILED: Key 'C' was not found.")
+	fmt.Printf("gRPC server listening on %s\n", port)
+
+	// 5. Start the server.
+	// This is a blocking call, so the program will run until it's interrupted.
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

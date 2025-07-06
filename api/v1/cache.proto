@@ -1,0 +1,47 @@
+// Specifies that we're using the proto3 syntax.
+syntax = "proto3";
+
+// Defines the Go package where the generated code will live.
+package api.v1;
+option go_package = "github.com/Devashish08/go-cache-cluster/api/v1";
+
+// The Cache service definition. This is our API.
+service Cache {
+  // Sets a key-value pair in the cache.
+  rpc Set(SetRequest) returns (SetResponse) {}
+
+  // Gets a value from the cache for a given key.
+  rpc Get(GetRequest) returns (GetResponse) {}
+
+  // Deletes a key from the cache.
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+}
+
+// --- Message Definitions for Set ---
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+  int64 ttl_seconds = 3; // Time-to-live in seconds. 0 means no expiration.
+}
+
+message SetResponse {
+
+}
+
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bytes value = 1;
+}
+
+// --- Message Definitions for Delete ---
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {
+  // Empty response means success.
+}
