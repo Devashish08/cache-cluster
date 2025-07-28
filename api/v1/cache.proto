@@ -1,47 +1,100 @@
-// Specifies that we're using the proto3 syntax.
+// Cache Service API Definition
+//
+// This protobuf file defines the gRPC API for the distributed cache service.
+// It specifies the service interface and message formats for client-server communication.
+//
+// Design Principles:
+//   - Simple key-value operations (get, set, delete)
+//   - Binary-safe values using bytes type
+//   - Optional TTL support for automatic expiration
+//   - Extensible message format for future enhancements
+//
+// Generated Code:
+//   - Run `protoc` or `buf generate` to generate Go code
+//   - Generated files: cache.pb.go, cache_grpc.pb.go
+//   - These provide client/server interfaces and message types
+//
+// Version: v1 (stable API contract)
+
 syntax = "proto3";
 
-// Defines the Go package where the generated code will live.
 package api.v1;
 option go_package = "github.com/Devashish08/go-cache-cluster/api/v1";
 
-// The Cache service definition. This is our API.
+// Cache service provides distributed key-value storage operations.
+//
+// This service supports:
+//   - Storing binary data with optional expiration
+//   - Retrieving data by key
+//   - Deleting data by key
+//   - Thread-safe concurrent operations
+//
+// Future enhancements may include:
+//   - Batch operations
+//   - Key listing/scanning
+//   - Cache statistics
+//   - Atomic operations (compare-and-swap)
 service Cache {
-  // Sets a key-value pair in the cache.
-  rpc Set(SetRequest) returns (SetResponse) {}
+  // Set stores a key-value pair in the cache with optional TTL.
+  //
+  // Behavior:
+  //   - Overwrites existing keys
+  //   - TTL of 0 means no expiration
+  //   - May trigger LRU eviction
+  //   - Always succeeds (no error conditions)
+  rpc Set(SetRequest) returns (SetResponse);
 
-  // Gets a value from the cache for a given key.
-  rpc Get(GetRequest) returns (GetResponse) {}
+  // Get retrieves a value from the cache by key.
+  //
+  // Behavior:
+  //   - Returns NotFound error if key doesn't exist or has expired
+  //   - Updates LRU ordering (key becomes most recently used)
+  //   - Performs lazy expiration cleanup
+  rpc Get(GetRequest) returns (GetResponse);
 
-  // Deletes a key from the cache.
-  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+  // Delete removes a key from the cache.
+  //
+  // Status: Currently unimplemented (returns Unimplemented error)
+  //
+  // Planned behavior:
+  //   - Removes key if it exists
+  //   - Returns success even if key doesn't exist (idempotent)
+  //   - Updates internal data structures
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
 }
 
-// --- Message Definitions for Set ---
+// SetRequest contains parameters for storing a key-value pair.
 message SetRequest {
-  string key = 1;
-  bytes value = 2;
-  int64 ttl_seconds = 3; // Time-to-live in seconds. 0 means no expiration.
+  string key = 1;           // The cache key (must be non-empty)
+  bytes value = 2;          // The value to store (binary-safe)
+  int64 ttl_seconds = 3;    // Time-to-live in seconds (0 = no expiration)
 }
 
+// SetResponse is returned after a successful set operation.
+// Currently empty but reserved for future metadata (e.g., version, timestamp).
 message SetResponse {
-
+  // Empty for now - may include metadata in future versions
 }
 
-
+// GetRequest contains parameters for retrieving a value.
 message GetRequest {
-  string key = 1;
+  string key = 1;           // The cache key to retrieve
 }
 
+// GetResponse contains the retrieved value.
 message GetResponse {
-  bytes value = 1;
+  bytes value = 1;          // The cached value (binary-safe)
+  // Future: may include metadata like TTL remaining, version, etc.
 }
 
-// --- Message Definitions for Delete ---
+// DeleteRequest contains parameters for removing a key.
 message DeleteRequest {
-  string key = 1;
+  string key = 1;           // The cache key to delete
 }
 
+// DeleteResponse is returned after a delete operation.
+// Currently empty but reserved for future metadata.
 message DeleteResponse {
-  // Empty response means success.
+  // Empty for now - may include metadata in future versions
+  // (e.g., whether key existed, number of keys deleted)
 }
